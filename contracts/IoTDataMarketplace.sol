@@ -7,7 +7,8 @@ pragma experimental ABIEncoderV2;
  */
 contract IoTDataMarketplace {
     address public ioTDataMarketplaceOwnerAddress;
-    DataStreamProvider[] public dataStreamProviders;
+    DataStreamEntity[] public dataStreamEntities;
+    mapping(address => address) dataStreamEntitiesOwnerToContractAddressMap;
 
     modifier restricted() {
         if (msg.sender == ioTDataMarketplaceOwnerAddress) _;
@@ -18,50 +19,74 @@ contract IoTDataMarketplace {
     }
 
 
-    function registerDataStreamProvider(
-        string memory _dataStreamProviderName
+    function registerDataStreamEntity(
+        string memory _dataStreamEntityName,
+        string memory _dataStreamEntityURL,
+        string memory _dataStreamEntityEmail
     ) public {
-        DataStreamProvider newDataStreamProvider = new DataStreamProvider(
-            address(this), msg.sender, _dataStreamProviderName);
+        DataStreamEntity newDataStreamEntity = new DataStreamEntity(
+            address(this),
+            msg.sender,
+            _dataStreamEntityName,
+            _dataStreamEntityURL,
+            _dataStreamEntityEmail
+        );
 
-        dataStreamProviders.push(newDataStreamProvider);
-        emit DataStreamProviderRegistered(address(newDataStreamProvider));
+        dataStreamEntities.push(newDataStreamEntity);
+        dataStreamEntitiesOwnerToContractAddressMap[msg.sender] = address(newDataStreamEntity);
+        emit DataStreamEntityRegistered(address(newDataStreamEntity));
 
     }
 
-    event DataStreamProviderRegistered(address newAddress);
+    event DataStreamEntityRegistered(address newAddress);
 
 
     function describeIoTDataMarketplace() public view returns (
         address,
-        DataStreamProvider[] memory
+        DataStreamEntity[] memory
     ) {
         return (
         ioTDataMarketplaceOwnerAddress,
-        dataStreamProviders
+        dataStreamEntities
         );
     }
+
+    function getDataStreamEntityContractAddressForOwnerAddress(address dataStreamEntityOwnerAccountAddress) public view returns (
+        address
+    ) {
+        return (
+        dataStreamEntitiesOwnerToContractAddressMap[dataStreamEntityOwnerAccountAddress]
+        );
+    }
+
 }
 
 
 /**
  *
  */
-contract DataStreamProvider {
+contract DataStreamEntity {
     address public iotDataMaketplaceContractAddress;
-    address public dataStreamProviderOwnerAddress;
+    address public dataStreamEntityOwnerAddress;
     string public name;
+    string public url;
+    string public email;
 
-    IoTDevice[] public ioTDevices;
+    address[] public ioTDevices;
+    address[] public DataStreamPurchase;
 
     constructor(
         address _iotDataMaketplaceContractAddress,
-        address _dataStreamProviderOwnerAddress,
-        string memory _name
+        address _dataStreamEntityOwnerAddress,
+        string memory _name,
+        string memory _url,
+        string memory _email
     ) public {
         iotDataMaketplaceContractAddress = _iotDataMaketplaceContractAddress;
-        dataStreamProviderOwnerAddress = _dataStreamProviderOwnerAddress;
+        dataStreamEntityOwnerAddress = _dataStreamEntityOwnerAddress;
         name = _name;
+        url = _url;
+        email = _email;
     }
 }
 
@@ -71,17 +96,57 @@ contract DataStreamProvider {
  * It should push the data directly to the IoTDataMarketplace
  */
 contract IoTDevice {
+    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.Geolocation;
+
+    address public dataStreamEntityContractAddress;
+    address[] public sensors;
+    IoTDataMarketplaceLibrary.Geolocation geolocation;
 
 
-
-    DataStreamProvider dataStreamProvider;
-    IoTDevice[] public ioTDevices;
-
-
-
-    constructor() public {
-
+    constructor(
+        address _dataStreamEntityContractAddress,
+        IoTDataMarketplaceLibrary.Geolocation memory _geolocation
+    ) public {
+        dataStreamEntityContractAddress = _dataStreamEntityContractAddress;
+        geolocation = _geolocation;
     }
+
+
+    function describeIoTDevice() public view returns (
+        address,
+        address[] memory
+    ) {
+        return (
+        dataStreamEntityContractAddress,
+        sensors
+        );
+    }
+
+}
+
+
+/**
+ *
+ */
+contract Sensor {
+
+    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.SensorType;
+
+    address ioTDeviceContractAddress;
+    IoTDataMarketplaceLibrary.SensorType sensorType;
+    string description;
+
+    constructor(
+        address _ioTDeviceContractAddress,
+        IoTDataMarketplaceLibrary.SensorType _sensorType,
+        string memory _description
+    ) public {
+        ioTDeviceContractAddress = _ioTDeviceContractAddress;
+        sensorType = _sensorType;
+        description = _description;
+    }
+
+
 }
 
 
@@ -103,33 +168,6 @@ contract DataStreamPurchase {
 }
 
 
-/**
- *
- */
-contract Sensor {
-
-    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.SensorType;
-    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.Geolocation;
-
-    address ioTDeviceContractAddress;
-    IoTDataMarketplaceLibrary.SensorType sensorType;
-    IoTDataMarketplaceLibrary.Geolocation geolocation;
-    string description;
-
-    constructor(
-        address _ioTDeviceContractAddress,
-        IoTDataMarketplaceLibrary.SensorType _sensorType,
-        IoTDataMarketplaceLibrary.Geolocation memory _geolocation,
-        string memory _description
-    ) public {
-        ioTDeviceContractAddress = _ioTDeviceContractAddress;
-        sensorType = _sensorType;
-        geolocation = _geolocation;
-        description = _description;
-    }
-
-
-}
 
 
 /**
@@ -159,5 +197,10 @@ library IoTDataMarketplaceLibrary {
     enum SensorType {
         TEMPERATURE,
         HUMIDITY
+    }
+
+    struct SensorDetails {
+        SensorType sensorType;
+        string description;
     }
 }
