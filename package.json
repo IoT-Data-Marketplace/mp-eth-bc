@@ -1,0 +1,24 @@
+{
+  "name": "mp-eth-bc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IoT-Data-Marketplace/mp-eth-bc.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/IoT-Data-Marketplace/mp-eth-bc/issues"
+  },
+  "homepage": "https://github.com/IoT-Data-Marketplace/mp-eth-bc#readme",
+  "dependencies": {
+    "fs-extra": "^8.1.0",
+    "path": "^0.12.7",
+    "solc": "^0.4.26"
+  }
+}
