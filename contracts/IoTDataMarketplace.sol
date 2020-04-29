@@ -66,63 +66,51 @@ contract IoTDataMarketplace {
  *
  */
 contract DataStreamEntity {
-    address public iotDataMaketplaceContractAddress;
+    address public iotDataMarketplaceContractAddress;
     address public dataStreamEntityOwnerAddress;
     string public name;
     string public url;
     string public email;
-
-    address[] public ioTDevices;
-    address[] public DataStreamPurchase;
+    Sensor[] public sensors;
 
     constructor(
-        address _iotDataMaketplaceContractAddress,
+        address _iotDataMarketplaceContractAddress,
         address _dataStreamEntityOwnerAddress,
         string memory _name,
         string memory _url,
         string memory _email
     ) public {
-        iotDataMaketplaceContractAddress = _iotDataMaketplaceContractAddress;
+        iotDataMarketplaceContractAddress = _iotDataMarketplaceContractAddress;
         dataStreamEntityOwnerAddress = _dataStreamEntityOwnerAddress;
         name = _name;
         url = _url;
         email = _email;
     }
-}
 
-
-/**
- * Represent an IoT Device, one IoT Device can have multiple sensors attached to it.
- * It should push the data directly to the IoTDataMarketplace
- */
-contract IoTDevice {
-    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.Geolocation;
-
-    address public dataStreamEntityContractAddress;
-    address[] public sensors;
-    IoTDataMarketplaceLibrary.Geolocation geolocation;
-
-
-    constructor(
-        address _dataStreamEntityContractAddress,
-        IoTDataMarketplaceLibrary.Geolocation memory _geolocation
-    ) public {
-        dataStreamEntityContractAddress = _dataStreamEntityContractAddress;
-        geolocation = _geolocation;
-    }
-
-
-    function describeIoTDevice() public view returns (
+    function describeDataStreamEntity() public view returns (
         address,
-        address[] memory
+        address,
+        string,
+        string,
+        string,
+        Sensor[]
     ) {
         return (
-        dataStreamEntityContractAddress,
+        iotDataMarketplaceContractAddress,
+        dataStreamEntityOwnerAddress,
+        name,
+        url,
+        email,
         sensors
         );
     }
 
+    function isAuthenticated() public view returns (bool) {
+        return (dataStreamEntityOwnerAddress == msg.sender);
+    }
 }
+
+
 
 
 /**
@@ -131,19 +119,23 @@ contract IoTDevice {
 contract Sensor {
 
     using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.SensorType;
+    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.Geolocation;
 
-    address ioTDeviceContractAddress;
+    address dataStreamEntityContractAddress;
     IoTDataMarketplaceLibrary.SensorType sensorType;
+    IoTDataMarketplaceLibrary.Geolocation geolocation;
     string description;
 
     constructor(
-        address _ioTDeviceContractAddress,
+        address _dataStreamEntityContractAddress,
         IoTDataMarketplaceLibrary.SensorType _sensorType,
+        IoTDataMarketplaceLibrary.Geolocation memory _geolocation,
         string memory _description
     ) public {
-        ioTDeviceContractAddress = _ioTDeviceContractAddress;
+        dataStreamEntityContractAddress = _dataStreamEntityContractAddress;
         sensorType = _sensorType;
         description = _description;
+        geolocation = _geolocation;
     }
 
 
