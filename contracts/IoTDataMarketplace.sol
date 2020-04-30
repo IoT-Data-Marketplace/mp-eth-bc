@@ -66,12 +66,15 @@ contract IoTDataMarketplace {
  *
  */
 contract DataStreamEntity {
+    using IoTDataMPLibrary for IoTDataMPLibrary.SensoryType;
+
     address public iotDataMarketplaceContractAddress;
     address public dataStreamEntityOwnerAddress;
     string public name;
     string public url;
     string public email;
-    Sensor[] public sensors;
+    address[] public sensors;
+
 
     constructor(
         address _iotDataMarketplaceContractAddress,
@@ -87,13 +90,31 @@ contract DataStreamEntity {
         email = _email;
     }
 
+    function registerNewSensor(
+        IoTDataMPLibrary.SensoryType _sensorType,
+        string memory _latitude,
+        string memory _longitude
+    ) public returns(address) {
+        require(msg.sender == dataStreamEntityOwnerAddress);
+
+        Sensor sensor = new Sensor(
+            address(this),
+            _sensorType,
+            _latitude,
+            _longitude
+        );
+        return address(sensor);
+
+    }
+
+
     function describeDataStreamEntity() public view returns (
         address,
         address,
         string,
         string,
         string,
-        Sensor[]
+        address[]
     ) {
         return (
         iotDataMarketplaceContractAddress,
@@ -117,82 +138,52 @@ contract DataStreamEntity {
  *
  */
 contract Sensor {
-
-    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.SensorType;
-    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.Geolocation;
+    using IoTDataMPLibrary for IoTDataMPLibrary.SensoryType;
 
     address dataStreamEntityContractAddress;
-    IoTDataMarketplaceLibrary.SensorType sensorType;
-    IoTDataMarketplaceLibrary.Geolocation geolocation;
-    string description;
+    IoTDataMPLibrary.SensoryType sensorType;
+    string latitude;
+    string longitude;
 
     constructor(
         address _dataStreamEntityContractAddress,
-        IoTDataMarketplaceLibrary.SensorType _sensorType,
-        IoTDataMarketplaceLibrary.Geolocation memory _geolocation,
-        string memory _description
+        IoTDataMPLibrary.SensoryType _sensorType,
+        string memory _latitude,
+        string memory _longitude
     ) public {
         dataStreamEntityContractAddress = _dataStreamEntityContractAddress;
         sensorType = _sensorType;
-        description = _description;
-        geolocation = _geolocation;
+        latitude = _latitude;
+        longitude = _longitude;
     }
 
-
-}
-
-
-/**
- *
- */
-contract DataStreamPurchase {
-
-    using IoTDataMarketplaceLibrary for IoTDataMarketplaceLibrary.DateTime;
-
-    Sensor sensor;
-
-    IoTDataMarketplaceLibrary.DateTime fromData;
-    IoTDataMarketplaceLibrary.DateTime toDate;
-
-    constructor() public {
-
+    function describeSensor() public view returns (
+        address,
+        IoTDataMPLibrary.SensoryType,
+        string memory,
+        string memory
+    ) {
+        return (
+        dataStreamEntityContractAddress,
+        sensorType,
+        latitude,
+        longitude
+        );
     }
-}
 
+}
 
 
 
 /**
  *
  */
-library IoTDataMarketplaceLibrary {
+library IoTDataMPLibrary {
 
     enum SensoryType {
         TEMPERATURE,
         HUMIDITY,
-        AIR_POLUTION
+        AIR_POLLUTION
     }
 
-    struct Geolocation {
-        string longitude;
-        string latitude;
-    }
-
-    struct DateTime {
-        uint16 year;
-        uint8 month;
-        uint8 day;
-        uint8 hour;
-        uint8 minute;
-    }
-
-    enum SensorType {
-        TEMPERATURE,
-        HUMIDITY
-    }
-
-    struct SensorDetails {
-        SensorType sensorType;
-        string description;
-    }
 }
