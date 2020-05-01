@@ -104,7 +104,7 @@ contract DataStreamEntity {
             _longitude
         );
         return address(sensor);
-
+        sensors.push(address(sensor));
     }
 
 
