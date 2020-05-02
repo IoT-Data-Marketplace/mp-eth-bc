@@ -94,7 +94,7 @@ contract DataStreamEntity {
         IoTDataMPLibrary.SensoryType _sensorType,
         string memory _latitude,
         string memory _longitude
-    ) public returns(address) {
+    ) public returns (address) {
         require(msg.sender == dataStreamEntityOwnerAddress);
 
         Sensor sensor = new Sensor(
@@ -103,8 +103,8 @@ contract DataStreamEntity {
             _latitude,
             _longitude
         );
-        return address(sensor);
         sensors.push(address(sensor));
+        return address(sensor);
     }
 
 
@@ -122,6 +122,15 @@ contract DataStreamEntity {
         name,
         url,
         email,
+        sensors
+        );
+    }
+
+
+    function getSensors() public view returns (
+        address[]
+    ) {
+        return (
         sensors
         );
     }
@@ -172,8 +181,6 @@ contract Sensor {
     }
 
 }
-
-
 
 /**
  *
