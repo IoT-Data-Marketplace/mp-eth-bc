@@ -9,6 +9,7 @@ contract IoTDataMarketplace {
     address public ioTDataMarketplaceOwnerAddress;
     DataStreamEntity[] public dataStreamEntities;
     mapping(address => address) dataStreamEntitiesOwnerToContractAddressMap;
+    uint8 commisionRate; // todo
 
     modifier restricted() {
         if (msg.sender == ioTDataMarketplaceOwnerAddress) _;
@@ -51,6 +52,10 @@ contract IoTDataMarketplace {
         );
     }
 
+    function getIoTDataMarketplaceOwnerAddress() public view returns (address) {
+        return (ioTDataMarketplaceOwnerAddress);
+    }
+
     function getDataStreamEntityContractAddressForOwnerAddress(address dataStreamEntityOwnerAccountAddress) public view returns (
         address
     ) {
@@ -62,7 +67,7 @@ contract IoTDataMarketplace {
 }
 
 
-/**
+/*
  *
  */
 contract DataStreamEntity {
@@ -94,7 +99,7 @@ contract DataStreamEntity {
         IoTDataMPLibrary.SensoryType _sensorType,
         string memory _latitude,
         string memory _longitude
-    ) public returns (address) {
+    ) public returns(address) {
         require(msg.sender == dataStreamEntityOwnerAddress);
 
         Sensor sensor = new Sensor(
@@ -107,6 +112,9 @@ contract DataStreamEntity {
         return address(sensor);
     }
 
+    function geIotDataMarketplaceContractAddress() public view returns (address) {
+        return (iotDataMarketplaceContractAddress);
+    }
 
     function describeDataStreamEntity() public view returns (
         address,
@@ -148,11 +156,14 @@ contract DataStreamEntity {
  */
 contract Sensor {
     using IoTDataMPLibrary for IoTDataMPLibrary.SensoryType;
+    using IoTDataMPLibrary for IoTDataMPLibrary.SensorStatus;
 
     address dataStreamEntityContractAddress;
     IoTDataMPLibrary.SensoryType sensorType;
     string latitude;
     string longitude;
+    IoTDataMPLibrary.SensorStatus sensorStatus;
+    uint pricePerDataUnit; // todo put this in the constructor
 
     constructor(
         address _dataStreamEntityContractAddress,
@@ -164,23 +175,49 @@ contract Sensor {
         sensorType = _sensorType;
         latitude = _latitude;
         longitude = _longitude;
+        sensorStatus = IoTDataMPLibrary.SensorStatus.INACTIVE;
+    }
+
+    function setSensorStatus(IoTDataMPLibrary.SensorStatus _sensorStatus) public {
+        DataStreamEntity dataStreamEntity = DataStreamEntity(dataStreamEntityContractAddress);
+        IoTDataMarketplace ioTDataMarketplace = IoTDataMarketplace(dataStreamEntity.geIotDataMarketplaceContractAddress());
+        require(msg.sender == ioTDataMarketplace.getIoTDataMarketplaceOwnerAddress(), "Sender not authorized"); // ensure that only the iotDataMarketplace can change the sensorStatus
+
+        sensorStatus = _sensorStatus;
+    }
+
+    function buyDataStream() public payable {
+
     }
 
     function describeSensor() public view returns (
         address,
         IoTDataMPLibrary.SensoryType,
         string memory,
-        string memory
+        string memory,
+        IoTDataMPLibrary.SensorStatus
     ) {
         return (
         dataStreamEntityContractAddress,
         sensorType,
         latitude,
-        longitude
+        longitude,
+        sensorStatus
         );
     }
 
 }
+
+
+contract DataStreamPurchase {
+    using IoTDataMPLibrary for IoTDataMPLibrary.SensoryType;
+
+    address dataStreamEntityBuyer;
+    address sensorContractAddress;
+
+
+}
+
 
 /**
  *
@@ -191,6 +228,20 @@ library IoTDataMPLibrary {
         TEMPERATURE,
         HUMIDITY,
         AIR_POLLUTION
+    }
+
+    enum SensorStatus {
+        INACTIVE,
+        ACTIVE,
+        BLOCKED
+    }
+
+    struct DateTime {
+        uint16 year;
+        uint8 month;
+        uint8 day;
+        uint8 hour;
+        uint8 minute;
     }
 
 }
