@@ -7,16 +7,21 @@ pragma experimental ABIEncoderV2;
  */
 contract IoTDataMarketplace {
     address public ioTDataMarketplaceOwnerAddress;
+    uint dataStreamEntityRegistrationPrice;
+    uint sensorRegistrationPrice;
+    uint8 dataStreamingCommissionRate;
     DataStreamEntity[] public dataStreamEntities;
     mapping(address => address) dataStreamEntitiesOwnerToContractAddressMap;
-    uint8 commisionRate; // todo
 
-    modifier restricted() {
-        if (msg.sender == ioTDataMarketplaceOwnerAddress) _;
-    }
-
-    constructor() public {
+    constructor(
+        uint _dataStreamEntityRegistrationPrice,
+        uint _sensorRegistrationPrice,
+        uint8 _dataStreamingCommissionRate
+    ) public {
         ioTDataMarketplaceOwnerAddress = msg.sender;
+        dataStreamEntityRegistrationPrice = _dataStreamEntityRegistrationPrice;
+        sensorRegistrationPrice = _sensorRegistrationPrice;
+        dataStreamingCommissionRate = _dataStreamingCommissionRate;
     }
 
 
@@ -24,7 +29,8 @@ contract IoTDataMarketplace {
         string memory _dataStreamEntityName,
         string memory _dataStreamEntityURL,
         string memory _dataStreamEntityEmail
-    ) public {
+    ) public payable {
+        require(msg.value >= dataStreamEntityRegistrationPrice, "You have to send enough money.");
         DataStreamEntity newDataStreamEntity = new DataStreamEntity(
             address(this),
             msg.sender,
@@ -44,16 +50,30 @@ contract IoTDataMarketplace {
 
     function describeIoTDataMarketplace() public view returns (
         address,
-        DataStreamEntity[] memory
+        DataStreamEntity[] memory,
+        uint,
+        uint,
+        uint8
     ) {
         return (
         ioTDataMarketplaceOwnerAddress,
-        dataStreamEntities
+        dataStreamEntities,
+        dataStreamEntityRegistrationPrice,
+        sensorRegistrationPrice,
+        dataStreamingCommissionRate
         );
     }
 
     function getIoTDataMarketplaceOwnerAddress() public view returns (address) {
         return (ioTDataMarketplaceOwnerAddress);
+    }
+
+    function getSensorRegistrationPrice() public view returns (uint) {
+        return (sensorRegistrationPrice);
+    }
+
+    function getDataStreamingCommissionRate() public view returns (uint8) {
+        return (dataStreamingCommissionRate);
     }
 
     function getDataStreamEntityContractAddressForOwnerAddress(address dataStreamEntityOwnerAccountAddress) public view returns (
@@ -64,6 +84,11 @@ contract IoTDataMarketplace {
         );
     }
 
+    function withdrawFunds() public payable {
+        require(msg.sender == ioTDataMarketplaceOwnerAddress, "Sender not authorized");
+        ioTDataMarketplaceOwnerAddress.transfer(address(this).balance);
+    }
+
 }
 
 
@@ -72,14 +97,16 @@ contract IoTDataMarketplace {
  */
 contract DataStreamEntity {
     using IoTDataMPLibrary for IoTDataMPLibrary.SensoryType;
+    using IoTDataMPLibrary for IoTDataMPLibrary.DataStreamPurchaseConfig;
 
-    address public iotDataMarketplaceContractAddress;
-    address public dataStreamEntityOwnerAddress;
-    string public name;
-    string public url;
-    string public email;
-    address[] public sensors;
-
+    address iotDataMarketplaceContractAddress;
+    uint iotDataMarketplaceFunds;
+    address dataStreamEntityOwnerAddress;
+    string name;
+    string url;
+    string email;
+    address[] sensors;
+    address[] dataStreamPurchases;
 
     constructor(
         address _iotDataMarketplaceContractAddress,
@@ -98,18 +125,41 @@ contract DataStreamEntity {
     function registerNewSensor(
         IoTDataMPLibrary.SensoryType _sensorType,
         string memory _latitude,
-        string memory _longitude
-    ) public returns(address) {
-        require(msg.sender == dataStreamEntityOwnerAddress);
-
+        string memory _longitude,
+        uint _pricePerDataUnit
+    ) public payable returns(address) {
+        require(msg.sender == dataStreamEntityOwnerAddress, "Sender not authorized");
+        IoTDataMarketplace ioTDataMarketplace = IoTDataMarketplace(iotDataMarketplaceContractAddress);
+        require(msg.value >= ioTDataMarketplace.getSensorRegistrationPrice(), "You have to send enough money.");
+        iotDataMarketplaceFunds += msg.value;
         Sensor sensor = new Sensor(
             address(this),
             _sensorType,
             _latitude,
-            _longitude
+            _longitude,
+            _pricePerDataUnit
         );
         sensors.push(address(sensor));
         return address(sensor);
+    }
+
+
+    function buyDataStream(
+        address _dataStreamEntityBayerContractAddress,
+        address _sensorContractAddress,
+        IoTDataMPLibrary.DataStreamPurchaseConfig _purchaseConfig
+    ) public payable {
+        Sensor sensor = Sensor(_sensorContractAddress);
+        require(msg.value >= _purchaseConfig.dataEntries * sensor.getPricePerDataUnit(), "You have to send enough money.");
+        // IoTDataMarketplace ioTDataMarketplace = IoTDataMarketplace(iotDataMarketplaceContractAddress);
+        // iotDataMarketplaceFunds += msg.value * (ioTDataMarketplace.getDataStreamingCommissionRate()/100);
+        // DataStreamPurchase dsp = new DataStreamPurchase(
+        //                     _dataStreamEntityBayerContractAddress,
+        //                     _sensorContractAddress,
+        //                     _purchaseConfig
+        //             );
+        // sensor.getDataStreamEntityContractAddress().transfer(msg.value);
+        // dataStreamPurchases.push(address(dsp));
     }
 
     function geIotDataMarketplaceContractAddress() public view returns (address) {
@@ -146,6 +196,14 @@ contract DataStreamEntity {
     function isAuthenticated() public view returns (bool) {
         return (dataStreamEntityOwnerAddress == msg.sender);
     }
+
+    // the only way to distribute the funds. It was not possible to pay out the iotDataMarketplace at the sensor/datastream purchase describeDataStreamEntity
+    // since it would require 2 blocks to mine the transaction
+    function distributeFunds() public payable {
+        require(msg.sender == dataStreamEntityOwnerAddress, "Sender not authorized");
+        iotDataMarketplaceContractAddress.transfer(iotDataMarketplaceFunds);
+        dataStreamEntityOwnerAddress.transfer(address(this).balance - iotDataMarketplaceFunds);
+    }
 }
 
 
@@ -163,18 +221,20 @@ contract Sensor {
     string latitude;
     string longitude;
     IoTDataMPLibrary.SensorStatus sensorStatus;
-    uint pricePerDataUnit; // todo put this in the constructor
+    uint pricePerDataUnit;
 
     constructor(
         address _dataStreamEntityContractAddress,
         IoTDataMPLibrary.SensoryType _sensorType,
         string memory _latitude,
-        string memory _longitude
+        string memory _longitude,
+        uint _pricePerDataUnit
     ) public {
         dataStreamEntityContractAddress = _dataStreamEntityContractAddress;
         sensorType = _sensorType;
         latitude = _latitude;
         longitude = _longitude;
+        pricePerDataUnit = _pricePerDataUnit;
         sensorStatus = IoTDataMPLibrary.SensorStatus.INACTIVE;
     }
 
@@ -186,36 +246,64 @@ contract Sensor {
         sensorStatus = _sensorStatus;
     }
 
-    function buyDataStream() public payable {
-
-    }
-
     function describeSensor() public view returns (
         address,
         IoTDataMPLibrary.SensoryType,
         string memory,
         string memory,
-        IoTDataMPLibrary.SensorStatus
+        IoTDataMPLibrary.SensorStatus,
+        uint
     ) {
         return (
         dataStreamEntityContractAddress,
         sensorType,
         latitude,
         longitude,
-        sensorStatus
+        sensorStatus,
+        pricePerDataUnit
         );
+    }
+
+    function getPricePerDataUnit() public view returns (uint) {
+        return (pricePerDataUnit);
+    }
+
+
+    function getDataStreamEntityContractAddress() public view returns (address) {
+        return (dataStreamEntityContractAddress);
     }
 
 }
 
 
 contract DataStreamPurchase {
-    using IoTDataMPLibrary for IoTDataMPLibrary.SensoryType;
+    using IoTDataMPLibrary for IoTDataMPLibrary.DataStreamPurchaseConfig;
 
-    address dataStreamEntityBuyer;
+    address dataStreamEntityBuyerContractAddress;
     address sensorContractAddress;
+    IoTDataMPLibrary.DataStreamPurchaseConfig purchaseConfig;
 
+    constructor(
+        address _dataStreamEntityBuyerContractAddress,
+        address _sensorContractAddress,
+        IoTDataMPLibrary.DataStreamPurchaseConfig _purchaseConfig
+    ) public {
+        dataStreamEntityBuyerContractAddress = _dataStreamEntityBuyerContractAddress;
+        sensorContractAddress = _sensorContractAddress;
+        purchaseConfig = _purchaseConfig;
+    }
 
+    function describeDataStreamPurchase() public view returns (
+        address,
+        address,
+        IoTDataMPLibrary.DataStreamPurchaseConfig
+    ) {
+        return (
+        dataStreamEntityBuyerContractAddress,
+        sensorContractAddress,
+        purchaseConfig
+        );
+    }
 }
 
 
@@ -236,12 +324,9 @@ library IoTDataMPLibrary {
         BLOCKED
     }
 
-    struct DateTime {
-        uint16 year;
-        uint8 month;
-        uint8 day;
-        uint8 hour;
-        uint8 minute;
+    struct DataStreamPurchaseConfig {
+        string startTimestamp;  // e.g. 2020-05-10T13:10:00Z
+        uint128 dataEntries;
     }
 
 }

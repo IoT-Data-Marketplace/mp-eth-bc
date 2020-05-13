@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
@@ -19,6 +19,9 @@
   "dependencies": {
     "fs-extra": "^8.1.0",
     "path": "^0.12.7",
-    "solc": "^0.4.26"
+    "solc": "^0.4.26",
+    "ganache-cli": "^6.1.6",
+    "mocha": "^5.2.0",
+    "web3": "^1.2.7"
   }
 }
