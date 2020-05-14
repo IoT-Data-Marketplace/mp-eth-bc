@@ -10,7 +10,7 @@ contract IoTDataMarketplace {
     uint dataStreamEntityRegistrationPrice;
     uint sensorRegistrationPrice;
     uint8 dataStreamingCommissionRate;
-    DataStreamEntity[] public dataStreamEntities;
+    address[] public dataStreamEntities;
     mapping(address => address) dataStreamEntitiesOwnerToContractAddressMap;
 
     constructor(
@@ -39,18 +39,14 @@ contract IoTDataMarketplace {
             _dataStreamEntityEmail
         );
 
-        dataStreamEntities.push(newDataStreamEntity);
-        dataStreamEntitiesOwnerToContractAddressMap[msg.sender] = address(newDataStreamEntity);
-        emit DataStreamEntityRegistered(address(newDataStreamEntity));
-
+        dataStreamEntities.push(address(newDataStreamEntity));
+        //        dataStreamEntitiesOwnerToContractAddressMap[msg.sender] = address(newDataStreamEntity);
     }
-
-    event DataStreamEntityRegistered(address newAddress);
 
 
     function describeIoTDataMarketplace() public view returns (
         address,
-        DataStreamEntity[] memory,
+        address[],
         uint,
         uint,
         uint8
@@ -62,6 +58,10 @@ contract IoTDataMarketplace {
         sensorRegistrationPrice,
         dataStreamingCommissionRate
         );
+    }
+
+    function getDataStreamEntities() public view returns (address[]) {
+        return (dataStreamEntities);
     }
 
     function getIoTDataMarketplaceOwnerAddress() public view returns (address) {
@@ -97,7 +97,6 @@ contract IoTDataMarketplace {
  */
 contract DataStreamEntity {
     using IoTDataMPLibrary for IoTDataMPLibrary.SensoryType;
-    using IoTDataMPLibrary for IoTDataMPLibrary.DataStreamPurchaseConfig;
 
     address iotDataMarketplaceContractAddress;
     uint iotDataMarketplaceFunds;
@@ -127,7 +126,7 @@ contract DataStreamEntity {
         string memory _latitude,
         string memory _longitude,
         uint _pricePerDataUnit
-    ) public payable returns(address) {
+    ) public payable returns (address) {
         require(msg.sender == dataStreamEntityOwnerAddress, "Sender not authorized");
         IoTDataMarketplace ioTDataMarketplace = IoTDataMarketplace(iotDataMarketplaceContractAddress);
         require(msg.value >= ioTDataMarketplace.getSensorRegistrationPrice(), "You have to send enough money.");
@@ -147,10 +146,11 @@ contract DataStreamEntity {
     function buyDataStream(
         address _dataStreamEntityBayerContractAddress,
         address _sensorContractAddress,
-        IoTDataMPLibrary.DataStreamPurchaseConfig _purchaseConfig
+        string _startTimestamp,
+        uint128 _dataEntries
     ) public payable {
         Sensor sensor = Sensor(_sensorContractAddress);
-        require(msg.value >= _purchaseConfig.dataEntries * sensor.getPricePerDataUnit(), "You have to send enough money.");
+        require(msg.value >= _dataEntries * sensor.getPricePerDataUnit(), "You have to send enough money.");
         // IoTDataMarketplace ioTDataMarketplace = IoTDataMarketplace(iotDataMarketplaceContractAddress);
         // iotDataMarketplaceFunds += msg.value * (ioTDataMarketplace.getDataStreamingCommissionRate()/100);
         // DataStreamPurchase dsp = new DataStreamPurchase(
@@ -162,8 +162,12 @@ contract DataStreamEntity {
         // dataStreamPurchases.push(address(dsp));
     }
 
-    function geIotDataMarketplaceContractAddress() public view returns (address) {
+    function getIotDataMarketplaceContractAddress() public view returns (address) {
         return (iotDataMarketplaceContractAddress);
+    }
+
+    function getDataStreamEntityOwnerAddress() public view returns (address) {
+        return (dataStreamEntityOwnerAddress);
     }
 
     function describeDataStreamEntity() public view returns (
@@ -240,8 +244,9 @@ contract Sensor {
 
     function setSensorStatus(IoTDataMPLibrary.SensorStatus _sensorStatus) public {
         DataStreamEntity dataStreamEntity = DataStreamEntity(dataStreamEntityContractAddress);
-        IoTDataMarketplace ioTDataMarketplace = IoTDataMarketplace(dataStreamEntity.geIotDataMarketplaceContractAddress());
-        require(msg.sender == ioTDataMarketplace.getIoTDataMarketplaceOwnerAddress(), "Sender not authorized"); // ensure that only the iotDataMarketplace can change the sensorStatus
+        IoTDataMarketplace ioTDataMarketplace = IoTDataMarketplace(dataStreamEntity.getIotDataMarketplaceContractAddress());
+        require(msg.sender == ioTDataMarketplace.getIoTDataMarketplaceOwnerAddress(), "Sender not authorized");
+        // ensure that only the iotDataMarketplace can change the sensorStatus
 
         sensorStatus = _sensorStatus;
     }
@@ -277,31 +282,35 @@ contract Sensor {
 
 
 contract DataStreamPurchase {
-    using IoTDataMPLibrary for IoTDataMPLibrary.DataStreamPurchaseConfig;
 
     address dataStreamEntityBuyerContractAddress;
     address sensorContractAddress;
-    IoTDataMPLibrary.DataStreamPurchaseConfig purchaseConfig;
+    string startTimestamp;  // e.g. 2020-05-10T13:10:00Z
+    uint128 dataEntries;
 
     constructor(
         address _dataStreamEntityBuyerContractAddress,
         address _sensorContractAddress,
-        IoTDataMPLibrary.DataStreamPurchaseConfig _purchaseConfig
+        string _startTimestamp,
+        uint128 _dataEntries
     ) public {
         dataStreamEntityBuyerContractAddress = _dataStreamEntityBuyerContractAddress;
         sensorContractAddress = _sensorContractAddress;
-        purchaseConfig = _purchaseConfig;
+        startTimestamp = _startTimestamp;
+        dataEntries = _dataEntries;
     }
 
     function describeDataStreamPurchase() public view returns (
         address,
         address,
-        IoTDataMPLibrary.DataStreamPurchaseConfig
+        string,
+        uint128
     ) {
         return (
         dataStreamEntityBuyerContractAddress,
         sensorContractAddress,
-        purchaseConfig
+        startTimestamp,
+        dataEntries
         );
     }
 }
@@ -322,11 +331,6 @@ library IoTDataMPLibrary {
         INACTIVE,
         ACTIVE,
         BLOCKED
-    }
-
-    struct DataStreamPurchaseConfig {
-        string startTimestamp;  // e.g. 2020-05-10T13:10:00Z
-        uint128 dataEntries;
     }
 
 }
