@@ -35,11 +35,12 @@ beforeEach(async () => {
             gas: '3000000'
         });
 
+
     await marketplace.methods.registerDataStreamEntity('Test', 'test', 'test')
         .send({
             from: dataStreamEntityOwnerAccountAddress,
             gas: '3000000',
-            value: '500000'
+            value: await marketplace.methods.getDataStreamEntityRegistrationPrice().call()
         });
 
     [dataStreamEntityAddress] = await marketplace.methods.getDataStreamEntities().call();
@@ -52,7 +53,7 @@ beforeEach(async () => {
     await dataStreamEntity.methods.registerNewSensor(1, 'long', 'lat', 1000).send({
         from: dataStreamEntityOwnerAccountAddress,
         gas: '3000000',
-        value: '500000'
+        value: await marketplace.methods.getSensorRegistrationPrice().call()
     });
 
     [sensorContractAddress] = await dataStreamEntity.methods.getSensors().call();
@@ -81,7 +82,7 @@ describe('Marketplace', () => {
         await dataStreamEntity.methods.registerNewSensor(1, 'long', 'lat', 1000).send({
             from: dataStreamEntityOwnerAccountAddress,
             gas: '3000000',
-            value: '500000'
+            value: await marketplace.methods.getSensorRegistrationPrice().call()
         });
         assert(true);
     });
@@ -91,7 +92,7 @@ describe('Marketplace', () => {
             await dataStreamEntity.methods.registerNewSensor(1, 'long', 'lat', 1000).send({
                 from: dataStreamEntityOwnerAccountAddress,
                 gas: '3000000',
-                value: '500'
+                value: '5'
             });
         }, {
             message: /You have to send enough money/
@@ -103,26 +104,40 @@ describe('Marketplace', () => {
             await dataStreamEntity.methods.registerNewSensor(1, 'long', 'lat', 1000).send({
                 from: someRandomAccountAddress,
                 gas: '3000000',
-                value: '500000'
+                value: await marketplace.methods.getSensorRegistrationPrice().call()
             });
         }, {
             message: /Sender not authorized/
         });
     });
 
-
-    it('can buy data stream', async () => {
-        await dataStreamEntity.methods.buyDataStream(
-            someRandomAccountAddress,
-            sensorContractAddress,
-            '2020-05-10T13:10:00Z',
-            1000000
-        ).send({
-            from: someRandomAccountAddress,
-            gas: '3000000',
-            value: 1000 * 1000000
+    it('marketplace can activate sensor', async () => {
+        await sensor.methods.setSensorStatus(1).send({
+            from: iotDataMarketplaceOwnerAccountAddress,
+            gas: '3000000'
         });
-        assert(true);
+    });
+
+    it('fails when sensor owner tries to change sensor status', async () => {
+        await assert.rejects(async () => {
+            await sensor.methods.setSensorStatus(1).send({
+                from: dataStreamEntityOwnerAccountAddress,
+                gas: '3000000'
+            });
+        }, {
+            message: /Sender not authorized/
+        });
+    });
+
+    it('fails when random user tries to change sensor status', async () => {
+        await assert.rejects(async () => {
+            await sensor.methods.setSensorStatus(1).send({
+                from: someRandomAccountAddress,
+                gas: '3000000'
+            });
+        }, {
+            message: /Sender not authorized/
+        });
     });
 
     it('iot data marketplace can update sensor status', async () => {
@@ -153,6 +168,96 @@ describe('Marketplace', () => {
         }, {
             message: /Sender not authorized/
         });
+    });
+
+
+    it('fails on buy data stream when the buyer doesnt send enought money', async () => {
+        await assert.rejects(async () => {
+            // we first activate the sensor
+            await sensor.methods.setSensorStatus(1).send({
+                from: iotDataMarketplaceOwnerAccountAddress,
+                gas: '3000000'
+            });
+
+            await sensor.methods.buyDataStream(
+                dataStreamEntityAddress,
+                "2020-05-10T13:10:00Z",
+                1000000
+            ).send({
+                from: someRandomAccountAddress,
+                gas: '3000000',
+                value: await sensor.methods.getPricePerDataUnit().call() * 10
+            });
+        }, {
+            message: /You have to send enough money./
+        });
+    });
+
+    it('fails on buy data stream when sensor not active', async () => {
+        await assert.rejects(async () => {
+            await sensor.methods.buyDataStream(
+                dataStreamEntityAddress,
+                "2020-05-10T13:10:00Z",
+                1000000
+            ).send({
+                from: someRandomAccountAddress,
+                gas: '3000000',
+                value: await sensor.methods.getPricePerDataUnit().call() * 1000000
+            });
+        }, {
+            message: /Sensor not active/
+        });
+    });
+
+
+    it('fails on buy data stream when sensor not active', async () => {
+        await assert.rejects(async () => {
+            await sensor.methods.buyDataStream(
+                someRandomAccountAddress,
+                '2020-05-10T13:10:00Z',
+                1000000
+            ).send({
+                from: someRandomAccountAddress,
+                gas: '3000000',
+                value: 1000 * 1000000
+            });
+        }, {
+            message: /Sensor not active/
+        });
+    });
+
+    it('random account can buy data stream', async () => {
+
+        // we first activate the sensor
+        await sensor.methods.setSensorStatus(1).send({
+            from: iotDataMarketplaceOwnerAccountAddress,
+            gas: '3000000'
+        });
+
+        await sensor.methods.buyDataStream(
+            dataStreamEntityAddress,
+            "2020-05-10T13:10:00Z",
+            1000000
+        ).send({
+            from: someRandomAccountAddress,
+            gas: '3000000',
+            value: await sensor.methods.getPricePerDataUnit().call() * 1000000
+        });
+
+
+        sensor.events.SensorRegistered({}, {
+            fromBlock: 0,
+            toBlock: 'latest'
+        }).on('data', (event) =>{
+            console.log('data: ', event);
+        }).on('changed', (change) => {
+            console.log('change:', change);
+        }).on('error', error => {
+            console.log('error: ', error);
+        });
+
+        console.log('acc: ', accounts);
+
     });
 
 });

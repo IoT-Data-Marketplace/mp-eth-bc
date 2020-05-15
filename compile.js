@@ -22,7 +22,7 @@ let output = null;
 
 fs.ensureDirSync(buildPath);
 
-console.log('Output: ', output);
+// console.log('Output: ', output);
 
 for (let contract in output) {
     fs.outputJsonSync(
