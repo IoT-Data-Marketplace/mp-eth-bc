@@ -109,6 +109,9 @@ contract DataStreamEntity {
     string url;
     string email;
     address[] sensors;
+    // just for a quick lookup to check if this datastream entity is an owner of the sensor
+    mapping(address => bool) sensorContractAddressToBoolMapping;
+    address[] dataStreamPurchases;
 
     constructor(
         address _iotDataMarketplaceContractAddress,
@@ -141,8 +144,28 @@ contract DataStreamEntity {
             _longitude,
             _pricePerDataUnit
         );
+        sensorContractAddressToBoolMapping[address(sensor)] = true;
         sensors.push(address(sensor));
         return address(sensor);
+    }
+
+    function buyDataStream(
+        address _dataStreamEntityBayerContractAddress,
+        address _sensorContractAddress,
+        string _startTimestamp,
+        uint128 _dataEntries
+    ) public payable {
+        Sensor sensor = Sensor(_sensorContractAddress);
+        require(sensor.isSensorActive(), "Sensor not active");
+        require(msg.value >= _dataEntries * sensor.getPricePerDataUnit(), "You have to send enough money.");
+        require(sensorContractAddressToBoolMapping[_sensorContractAddress], "This datastream entity is not the owner of the given sensor");
+        DataStreamPurchase dsp = new DataStreamPurchase(
+            _dataStreamEntityBayerContractAddress,
+            address(this),
+            _startTimestamp,
+            _dataEntries
+        );
+        dataStreamPurchases.push(address(dsp));
     }
 
     function getIotDataMarketplaceContractAddress() public view returns (address) {
@@ -209,10 +232,6 @@ contract Sensor {
     string longitude;
     IoTDataMPLibrary.SensorStatus sensorStatus;
     uint pricePerDataUnit;
-    address[] dataStreamPurchases;
-    mapping(address => address) dataStreamEntityContractAddressToDataStreamPurchaseContractAddressMap;
-
-    event SensorRegistered(address indexed from);
 
     constructor(
         address _dataStreamEntityContractAddress,
@@ -237,22 +256,7 @@ contract Sensor {
         sensorStatus = _sensorStatus;
     }
 
-    function buyDataStream(
-        address _dataStreamEntityBayerContractAddress,
-        string _startTimestamp,
-        uint128 _dataEntries
-    ) public payable {
-        require(sensorStatus == IoTDataMPLibrary.SensorStatus.ACTIVE, "Sensor not active");
-        require(msg.value >= _dataEntries * pricePerDataUnit, "You have to send enough money.");
-        DataStreamPurchase dsp = new DataStreamPurchase(
-            _dataStreamEntityBayerContractAddress,
-            address(this),
-            _startTimestamp,
-            _dataEntries
-        );
-        dataStreamPurchases.push(address(dsp));
-        emit SensorRegistered(address(dsp));
-    }
+
 
     function describeSensor() public view returns (
         address,
@@ -276,6 +280,9 @@ contract Sensor {
         return (pricePerDataUnit);
     }
 
+    function isSensorActive() public view returns (bool) {
+        return (sensorStatus == IoTDataMPLibrary.SensorStatus.ACTIVE);
+    }
 
     function getDataStreamEntityContractAddress() public view returns (address) {
         return (dataStreamEntityContractAddress);
