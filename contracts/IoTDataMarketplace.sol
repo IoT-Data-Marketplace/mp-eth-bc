@@ -112,10 +112,6 @@ contract DataStreamEntity {
     // just for a quick lookup to check if this datastream entity is an owner of the sensor
     mapping(address => bool) sensorContractAddressToBoolMapping;
 
-    // for a quick lookup to check if the datastream entity is subscribed for the sensor's data stream
-    mapping(address => address) sensorContractAddressToDataStreamPurchaseContractAddressMap;
-    address[] dataStreamPurchases;
-
     constructor(
         address _iotDataMarketplaceContractAddress,
         address _dataStreamEntityOwnerAddress,
@@ -152,36 +148,12 @@ contract DataStreamEntity {
         return address(sensor);
     }
 
-    function buyDataStream(
-        address _dataStreamEntityBayerContractAddress,
-        address _sensorContractAddress,
-        string _startTimestamp,
-        uint128 _dataEntries
-    ) public payable {
-        Sensor sensor = Sensor(_sensorContractAddress);
-        require(sensor.isSensorActive(), "Sensor not active");
-        require(msg.value >= _dataEntries * sensor.getPricePerDataUnit(), "You have to send enough money.");
-        require(sensorContractAddressToBoolMapping[_sensorContractAddress], "This datastream entity is not the owner of the given sensor");
-        DataStreamPurchase dsp = new DataStreamPurchase(
-            _dataStreamEntityBayerContractAddress,
-            address(this),
-            _startTimestamp,
-            _dataEntries
-        );
-        sensorContractAddressToDataStreamPurchaseContractAddressMap[_sensorContractAddress] = address(dsp);
-        dataStreamPurchases.push(address(dsp));
-    }
-
     function getIotDataMarketplaceContractAddress() public view returns (address) {
         return (iotDataMarketplaceContractAddress);
     }
 
     function getDataStreamEntityOwnerAddress() public view returns (address) {
         return (dataStreamEntityOwnerAddress);
-    }
-
-    function getDataStreamPurchaseContractAddressForSensorContractAddressMap(address _sensorContractAddress) public view returns (address) {
-        return (sensorContractAddressToDataStreamPurchaseContractAddressMap[_sensorContractAddress]);
     }
 
     function describeDataStreamEntity() public view returns (
@@ -240,6 +212,9 @@ contract Sensor {
     string longitude;
     IoTDataMPLibrary.SensorStatus sensorStatus;
     uint pricePerDataUnit;
+    address[] dataStreamSubscriptions;
+    // for a quick lookup to check if the dsp is subscribed to the data stream
+    mapping(address => address) dataStreamEntityContractAddressToDataStreamSubscriptionContractAddressMap;
 
     constructor(
         address _dataStreamEntityContractAddress,
@@ -264,6 +239,23 @@ contract Sensor {
         sensorStatus = _sensorStatus;
     }
 
+
+    function buyDataStream(
+        address _dataStreamEntityBayerContractAddress,
+        string _startTimestamp,
+        uint128 _dataEntries
+    ) public payable {
+        require(isSensorActive(), "Sensor not active");
+        require(msg.value >= _dataEntries * pricePerDataUnit, "You have to send enough money.");
+        DataStreamSubscription dsp = new DataStreamSubscription(
+            _dataStreamEntityBayerContractAddress,
+            address(this),
+            _startTimestamp,
+            _dataEntries
+        );
+        dataStreamEntityContractAddressToDataStreamSubscriptionContractAddressMap[_dataStreamEntityBayerContractAddress] = address(dsp);
+        dataStreamSubscriptions.push(address(dsp));
+    }
 
 
     function describeSensor() public view returns (
@@ -296,10 +288,15 @@ contract Sensor {
         return (dataStreamEntityContractAddress);
     }
 
+
+    function getDataStreamSubscriptionContractAddressForDSE(address _dataStreamEntityContractAddress) public view returns (address) {
+        return dataStreamEntityContractAddressToDataStreamSubscriptionContractAddressMap[_dataStreamEntityContractAddress];
+    }
+
 }
 
 
-contract DataStreamPurchase {
+contract DataStreamSubscription {
 
     address dataStreamEntityBuyerContractAddress;
     address sensorContractAddress;
@@ -322,7 +319,7 @@ contract DataStreamPurchase {
         return (dataStreamEntityBuyerContractAddress);
     }
 
-    function describeDataStreamPurchase() public view returns (
+    function describeDataStreamSubscription() public view returns (
         address,
         address,
         string,

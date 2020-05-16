@@ -6,7 +6,7 @@ const web3 = new Web3(ganache.provider());
 const compiledMarketplace = require('../build/IoTDataMarketplace.json');
 const compiledDataStreamEntity = require('../build/DataStreamEntity.json');
 const compiledSensor = require('../build/Sensor.json');
-const compiledDataStreamPurchase = require('../build/DataStreamPurchase.json');
+const compiledDataStreamSubscription = require('../build/DataStreamSubscription.json');
 
 
 let accounts;
@@ -199,9 +199,8 @@ describe('Marketplace', () => {
                 gas: '3000000'
             });
 
-            await dataStreamEntity.methods.buyDataStream(
+            await sensor.methods.buyDataStream(
                 dataStreamEntityAddress,
-                sensorContractAddress,
                 "2020-05-10T13:10:00Z",
                 1000000
             ).send({
@@ -217,33 +216,14 @@ describe('Marketplace', () => {
 
     it('fails on buy data stream when sensor not active', async () => {
         await assert.rejects(async () => {
-            await dataStreamEntity.methods.buyDataStream(
+            await sensor.methods.buyDataStream(
                 dataStreamEntityAddress,
-                sensorContractAddress,
                 "2020-05-10T13:10:00Z",
                 1000000
             ).send({
                 from: someRandomAccountAddress,
                 gas: '3000000',
                 value: await sensor.methods.getPricePerDataUnit().call() * 1000000
-            });
-        }, {
-            message: /Sensor not active/
-        });
-    });
-
-
-    it('fails on buy data stream when sensor not active', async () => {
-        await assert.rejects(async () => {
-            await dataStreamEntity.methods.buyDataStream(
-                dataStreamEntityAddress,
-                sensorContractAddress,
-                '2020-05-10T13:10:00Z',
-                1000000
-            ).send({
-                from: someRandomAccountAddress,
-                gas: '3000000',
-                value: 1000 * 1000000
             });
         }, {
             message: /Sensor not active/
@@ -258,9 +238,8 @@ describe('Marketplace', () => {
             gas: '3000000'
         });
 
-        await dataStreamEntity.methods.buyDataStream(
-            someRandomAccountAddress,
-            sensorContractAddress,
+        await sensor.methods.buyDataStream(
+            dataStreamEntityAddress,
             "2020-05-10T13:10:00Z",
             1000000
         ).send({
@@ -269,74 +248,72 @@ describe('Marketplace', () => {
             value: await sensor.methods.getPricePerDataUnit().call() * 1000000
         });
 
+        const dataStreamSubscriptionContractAddress = await sensor.methods.getDataStreamSubscriptionContractAddressForDSE(dataStreamEntityAddress).call();
 
-        const dataStreamPurchaseContractAddress = await dataStreamEntity.methods.getDataStreamPurchaseContractAddressForSensorContractAddressMap(sensorContractAddress).call();
-
-        const dataStreamPurchaseContract = await new web3.eth.Contract(
-            JSON.parse(compiledDataStreamPurchase.interface),
-            dataStreamPurchaseContractAddress
+        const dataStreamSubscription = await new web3.eth.Contract(
+            JSON.parse(compiledDataStreamSubscription.interface),
+            dataStreamSubscriptionContractAddress
         )
 
-        const dseBuyerAddress = await dataStreamPurchaseContract.methods.getDataStreamEntityBuyerContractAddress().call();
+        const dataStreamEntityBuyerContractAddress = await dataStreamSubscription.methods.getDataStreamEntityBuyerContractAddress().call();
 
-
-        assert.equal(dseBuyerAddress, someRandomAccountAddress);
+        assert.equal(dataStreamEntityBuyerContractAddress, dataStreamEntityAddress);
 
     });
 
-
-    it('fails on buy data stream when sensor is not owned by the given data stream entity', async () => {
-        await assert.rejects(async () => {
-
-            await marketplace.methods.registerDataStreamEntity('Test2', 'test2', 'test2')
-                .send({
-                    from: accounts[6],
-                    gas: '3000000',
-                    value: await marketplace.methods.getDataStreamEntityRegistrationPrice().call()
-                });
-
-            const dataStreamEntityAddresses = await marketplace.methods.getDataStreamEntities().call();
-            const dataStreamEntityAddress2 = dataStreamEntityAddresses[1];
-
-            const dataStreamEntity2 = await new web3.eth.Contract(
-                JSON.parse(compiledDataStreamEntity.interface),
-                dataStreamEntityAddress2
-            )
-
-            await dataStreamEntity2.methods.registerNewSensor(1, 'long', 'lat', 1000).send({
-                from: accounts[6],
-                gas: '3000000',
-                value: await marketplace.methods.getSensorRegistrationPrice().call()
-            });
-
-            const [sensorContractAddress2] = await dataStreamEntity2.methods.getSensors().call();
-
-            const sensor2 = await new web3.eth.Contract(
-                JSON.parse(compiledSensor.interface),
-                sensorContractAddress2
-            )
-
-            // we first activate the sensor
-            await sensor2.methods.setSensorStatus(1).send({
-                from: iotDataMarketplaceOwnerAccountAddress,
-                gas: '3000000'
-            });
-
-            // now we try to buy a datastream from a sensor that is not owned by the given datastream entity
-            await dataStreamEntity.methods.buyDataStream(
-                dataStreamEntityAddress,
-                sensorContractAddress2,
-                "2020-05-10T13:10:00Z",
-                1000000
-            ).send({
-                from: someRandomAccountAddress,
-                gas: '3000000',
-                value: await sensor.methods.getPricePerDataUnit().call() * 1000000
-            });
-        }, {
-            message: /This datastream entity is not the owner of the given sensor/
-        });
-    });
+    //
+    // it('fails on buy data stream when sensor is not owned by the given data stream entity', async () => {
+    //     await assert.rejects(async () => {
+    //
+    //         await marketplace.methods.registerDataStreamEntity('Test2', 'test2', 'test2')
+    //             .send({
+    //                 from: accounts[6],
+    //                 gas: '3000000',
+    //                 value: await marketplace.methods.getDataStreamEntityRegistrationPrice().call()
+    //             });
+    //
+    //         const dataStreamEntityAddresses = await marketplace.methods.getDataStreamEntities().call();
+    //         const dataStreamEntityAddress2 = dataStreamEntityAddresses[1];
+    //
+    //         const dataStreamEntity2 = await new web3.eth.Contract(
+    //             JSON.parse(compiledDataStreamEntity.interface),
+    //             dataStreamEntityAddress2
+    //         )
+    //
+    //         await dataStreamEntity2.methods.registerNewSensor(1, 'long', 'lat', 1000).send({
+    //             from: accounts[6],
+    //             gas: '3000000',
+    //             value: await marketplace.methods.getSensorRegistrationPrice().call()
+    //         });
+    //
+    //         const [sensorContractAddress2] = await dataStreamEntity2.methods.getSensors().call();
+    //
+    //         const sensor2 = await new web3.eth.Contract(
+    //             JSON.parse(compiledSensor.interface),
+    //             sensorContractAddress2
+    //         )
+    //
+    //         // we first activate the sensor
+    //         await sensor2.methods.setSensorStatus(1).send({
+    //             from: iotDataMarketplaceOwnerAccountAddress,
+    //             gas: '3000000'
+    //         });
+    //
+    //         // now we try to buy a datastream from a sensor that is not owned by the given datastream entity
+    //         await dataStreamEntity.methods.buyDataStream(
+    //             dataStreamEntityAddress,
+    //             sensorContractAddress2,
+    //             "2020-05-10T13:10:00Z",
+    //             1000000
+    //         ).send({
+    //             from: someRandomAccountAddress,
+    //             gas: '3000000',
+    //             value: await sensor.methods.getPricePerDataUnit().call() * 1000000
+    //         });
+    //     }, {
+    //         message: /This datastream entity is not the owner of the given sensor/
+    //     });
+    // });
 
 /*
 * DATA STREAMS
