@@ -40,7 +40,7 @@ contract IoTDataMarketplace {
         );
 
         dataStreamEntities.push(address(newDataStreamEntity));
-        //        dataStreamEntitiesOwnerToContractAddressMap[msg.sender] = address(newDataStreamEntity);
+        dataStreamEntitiesOwnerToContractAddressMap[msg.sender] = address(newDataStreamEntity);
     }
 
 
@@ -111,6 +111,9 @@ contract DataStreamEntity {
     address[] sensors;
     // just for a quick lookup to check if this datastream entity is an owner of the sensor
     mapping(address => bool) sensorContractAddressToBoolMapping;
+
+    // for a quick lookup to check if the datastream entity is subscribed for the sensor's data stream
+    mapping(address => address) sensorContractAddressToDataStreamPurchaseContractAddressMap;
     address[] dataStreamPurchases;
 
     constructor(
@@ -165,6 +168,7 @@ contract DataStreamEntity {
             _startTimestamp,
             _dataEntries
         );
+        sensorContractAddressToDataStreamPurchaseContractAddressMap[_sensorContractAddress] = address(dsp);
         dataStreamPurchases.push(address(dsp));
     }
 
@@ -174,6 +178,10 @@ contract DataStreamEntity {
 
     function getDataStreamEntityOwnerAddress() public view returns (address) {
         return (dataStreamEntityOwnerAddress);
+    }
+
+    function getDataStreamPurchaseContractAddressForSensorContractAddressMap(address _sensorContractAddress) public view returns (address) {
+        return (sensorContractAddressToDataStreamPurchaseContractAddressMap[_sensorContractAddress]);
     }
 
     function describeDataStreamEntity() public view returns (
@@ -308,6 +316,10 @@ contract DataStreamPurchase {
         sensorContractAddress = _sensorContractAddress;
         startTimestamp = _startTimestamp;
         dataEntries = _dataEntries;
+    }
+
+    function getDataStreamEntityBuyerContractAddress() public view returns (address) {
+        return (dataStreamEntityBuyerContractAddress);
     }
 
     function describeDataStreamPurchase() public view returns (

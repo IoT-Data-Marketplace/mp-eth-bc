@@ -6,6 +6,7 @@ const web3 = new Web3(ganache.provider());
 const compiledMarketplace = require('../build/IoTDataMarketplace.json');
 const compiledDataStreamEntity = require('../build/DataStreamEntity.json');
 const compiledSensor = require('../build/Sensor.json');
+const compiledDataStreamPurchase = require('../build/DataStreamPurchase.json');
 
 
 let accounts;
@@ -258,7 +259,7 @@ describe('Marketplace', () => {
         });
 
         await dataStreamEntity.methods.buyDataStream(
-            dataStreamEntityAddress,
+            someRandomAccountAddress,
             sensorContractAddress,
             "2020-05-10T13:10:00Z",
             1000000
@@ -267,6 +268,20 @@ describe('Marketplace', () => {
             gas: '3000000',
             value: await sensor.methods.getPricePerDataUnit().call() * 1000000
         });
+
+
+        const dataStreamPurchaseContractAddress = await dataStreamEntity.methods.getDataStreamPurchaseContractAddressForSensorContractAddressMap(sensorContractAddress).call();
+
+        const dataStreamPurchaseContract = await new web3.eth.Contract(
+            JSON.parse(compiledDataStreamPurchase.interface),
+            dataStreamPurchaseContractAddress
+        )
+
+        const dseBuyerAddress = await dataStreamPurchaseContract.methods.getDataStreamEntityBuyerContractAddress().call();
+
+
+        assert.equal(dseBuyerAddress, someRandomAccountAddress);
+
     });
 
 
