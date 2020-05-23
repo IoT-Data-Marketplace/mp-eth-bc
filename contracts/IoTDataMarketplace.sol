@@ -28,7 +28,8 @@ contract IoTDataMarketplace {
     function registerDataStreamEntity(
         string memory _dataStreamEntityName,
         string memory _dataStreamEntityURL,
-        string memory _dataStreamEntityEmail
+        string memory _dataStreamEntityEmail,
+        string memory _rsaPublicKey
     ) public payable {
         require(msg.value >= dataStreamEntityRegistrationPrice, "You have to send enough money.");
         DataStreamEntity newDataStreamEntity = new DataStreamEntity(
@@ -36,7 +37,8 @@ contract IoTDataMarketplace {
             msg.sender,
             _dataStreamEntityName,
             _dataStreamEntityURL,
-            _dataStreamEntityEmail
+            _dataStreamEntityEmail,
+            _rsaPublicKey
         );
 
         dataStreamEntities.push(address(newDataStreamEntity));
@@ -108,6 +110,7 @@ contract DataStreamEntity {
     string name;
     string url;
     string email;
+    string rsaPublicKey;
     address[] sensors;
     // just for a quick lookup to check if this datastream entity is an owner of the sensor
     mapping(address => bool) sensorContractAddressToBoolMapping;
@@ -117,13 +120,15 @@ contract DataStreamEntity {
         address _dataStreamEntityOwnerAddress,
         string memory _name,
         string memory _url,
-        string memory _email
+        string memory _email,
+        string memory _rsaPublicKey
     ) public {
         iotDataMarketplaceContractAddress = _iotDataMarketplaceContractAddress;
         dataStreamEntityOwnerAddress = _dataStreamEntityOwnerAddress;
         name = _name;
         url = _url;
         email = _email;
+        rsaPublicKey = _rsaPublicKey;
     }
 
     function registerNewSensor(
@@ -162,6 +167,7 @@ contract DataStreamEntity {
         string,
         string,
         string,
+        string,
         address[]
     ) {
         return (
@@ -170,6 +176,7 @@ contract DataStreamEntity {
         name,
         url,
         email,
+        rsaPublicKey,
         sensors
         );
     }
@@ -259,20 +266,20 @@ contract Sensor {
 
 
     function describeSensor() public view returns (
-        address,
-        IoTDataMPLibrary.SensoryType,
-        string memory,
-        string memory,
-        IoTDataMPLibrary.SensorStatus,
-        uint
+            address,
+            IoTDataMPLibrary.SensoryType,
+            string memory,
+            string memory,
+            IoTDataMPLibrary.SensorStatus,
+            uint
     ) {
         return (
-        dataStreamEntityContractAddress,
-        sensorType,
-        latitude,
-        longitude,
-        sensorStatus,
-        pricePerDataUnit
+            dataStreamEntityContractAddress,
+            sensorType,
+            latitude,
+            longitude,
+            sensorStatus,
+            pricePerDataUnit
         );
     }
 

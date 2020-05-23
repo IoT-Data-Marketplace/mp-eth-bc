@@ -37,7 +37,7 @@ beforeEach(async () => {
         });
 
 
-    await marketplace.methods.registerDataStreamEntity('Test', 'test', 'test')
+    await marketplace.methods.registerDataStreamEntity('Test', 'test', 'test', 'test')
         .send({
             from: dataStreamEntityOwnerAccountAddress,
             gas: '3000000',
