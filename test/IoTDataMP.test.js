@@ -320,28 +320,3 @@ describe('Marketplace', () => {
 * */
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// sensor.events.SensorRegistered({}, {
-//     fromBlock: 0,
-//     toBlock: 'latest'
-// }).on('data', (event) =>{
-//     console.log('data: ', event);
-// }).on('changed', (change) => {
-//     console.log('change:', change);
-// }).on('error', error => {
-//     console.log('error: ', error);
-// });
-
